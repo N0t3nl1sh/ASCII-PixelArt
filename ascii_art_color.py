@@ -15,28 +15,50 @@ def accelerate_conversion(image, gray_image, width, height, color_coeff, ascii_c
                 array_of_values.append((char_index, (r, g, b), (x, y)))
     return array_of_values
 
+def Clamp(something,min,max):
+        if something < min:
+            something= min
+        if something > max:
+            something = max
+        return something
 
 class ArtConverter:
-    def __init__(self, path='video/test.mp4', font_size=12, color_lvl=8):
+    def __init__(self,path='img\pfp.jpg', font_size=12, color_lvl=8):
         pg.init()
-        self.path = path
-        self.capture = cv2.VideoCapture(path)
-        self.COLOR_LVL = color_lvl
+        if path.endswith(".mp4"):
+            self.path = path
+            self.capture = cv2.VideoCapture(path)
+            self.mode = "video"
+            self.image = self.get_image()
+        elif path.endswith(".png") or path.endswith(".jpg") or path.endswith(".jpeg"):
+            self.path = path
+            self.cv2_image = cv2.imread(self.path)
+            self.mode = "image"
+            self.image = self.get_image()
+        else:
+            self.mode = "idk"
+
+
         self.image, self.gray_image = self.get_image()
         self.RES = self.WIDTH, self.HEIGHT = self.image.shape[0], self.image.shape[1]
         self.surface = pg.display.set_mode(self.RES)
         self.clock = pg.time.Clock()
 
-        self.ASCII_CHARS = ' ixzao*#MW&8%B@$'
+        self.asurf = 0
+        ArtConverter.rendered = False
+
+        self.COLOR_LVL = color_lvl
+        self.ASCII_CHARS = ' .tgyW@' #'"o*#W&8@' #':;!~+-xmo*#T&8@' #' ixzao*#MW&8%B@$'
         self.ASCII_COEFF = 255 // (len(self.ASCII_CHARS) - 1)
 
         self.font = pg.font.SysFont('Сourier', font_size, bold=True)
         self.CHAR_STEP = int(font_size * 0.6)
         self.PALETTE, self.COLOR_COEFF = self.create_palette()
 
-        self.rec_fps = self.capture.get(cv2.CAP_PROP_FPS)
         self.record = False
-        self.recorder = cv2.VideoWriter('output/ascii_col.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.rec_fps, self.RES)
+        if self.mode == "video":
+            self.rec_fps = self.capture.get(cv2.CAP_PROP_FPS)
+            self.recorder = cv2.VideoWriter('output/ascii_col.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.rec_fps, self.RES)
 
     def get_frame(self):
         frame = pg.surfarray.array3d(self.surface)
@@ -52,17 +74,26 @@ class ArtConverter:
                 self.record = not self.record
                 cv2.destroyAllWindows()
 
+    
+
     def draw_converted_image(self):
-        image, gray_image = self.get_image()
-        array_of_values = accelerate_conversion(image, gray_image, self.WIDTH, self.HEIGHT,
-                                                self.COLOR_COEFF, self.ASCII_COEFF, self.CHAR_STEP)
-        for char_index, color, pos in array_of_values:
-                char = self.ASCII_CHARS[char_index]
-                self.surface.blit(self.PALETTE[char][color], pos)
+        if ArtConverter.rendered == False:
+            print("render tine")
+            image, gray_image = self.get_image()
+            array_of_values = accelerate_conversion(image, gray_image, self.WIDTH, self.HEIGHT,
+                                                    self.COLOR_COEFF, self.ASCII_COEFF, self.CHAR_STEP)
+            for char_index, color, pos in array_of_values:
+                    char = self.ASCII_CHARS[char_index]
+                    self.surface.blit(self.PALETTE[char][color], pos)
+            self.asurf = self.surface.copy()
+            ArtConverter.rendered = True
+        else: #already rendered
+            self.surface.blit(self.asurf,(0,0))
 
     def create_palette(self):
         colors, color_coeff = np.linspace(0, 255, num=self.COLOR_LVL, dtype=int, retstep=True)
-        color_palette = [np.array([r, g, b]) for r in colors for g in colors for b in colors]
+        color_palette = [np.array([r, g, b ]) for r in colors for g in colors for b in colors]
+        
         palette = dict.fromkeys(self.ASCII_CHARS, None)
         color_coeff = int(color_coeff)
         for char in palette:
@@ -75,13 +106,23 @@ class ArtConverter:
 
     def get_image(self):
         # self.cv2_image = cv2.imread(self.path)
-        ret, self.cv2_image = self.capture.read()
-        if not ret:
-            exit()
-        transposed_image = cv2.transpose(self.cv2_image)
-        image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2RGB)
-        gray_image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2GRAY)
-        return image, gray_image
+
+        if self.mode == "video":
+            ret, self.cv2_image = self.capture.read()
+            if not ret:
+                exit()
+
+            transposed_image = cv2.transpose(self.cv2_image)
+            image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2RGB)
+            gray_image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2GRAY)
+            return image, gray_image
+        elif self.mode == "image":
+            self.cv2_image = cv2.imread(self.path)
+            transposed_image = cv2.transpose(self.cv2_image)
+            image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2RGB)
+            gray_image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2GRAY)
+            return image,gray_image
+
 
     def draw_cv2_image(self):
         resized_cv2_image = cv2.resize(self.cv2_image, (640, 360), interpolation=cv2.INTER_AREA)
@@ -94,9 +135,11 @@ class ArtConverter:
 
     def save_image(self):
         pygame_image = pg.surfarray.array3d(self.surface)
-        cv2_img = cv2.transpose(pygame_image)
-        cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_RGB2BGR)
-        cv2.imwrite('output/ascii_col_image.jpg', cv2_img)
+        pg.image.save(self.asurf,"output/ascii_col_image.png")
+        
+        #cv2_img = cv2.transpose(pygame_image)
+        #cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_RGB2BGR)
+        #cv2.imwrite('output/ascii_col_image.jpg', cv2_img)
 
     def run(self):
         while True:
@@ -109,10 +152,12 @@ class ArtConverter:
                     if i.key == pg.K_r:
                         self.record = not self.record
             self.record_frame()
+
+
             self.draw()
             pg.display.set_caption(str(self.clock.get_fps()))
             pg.display.flip()
-            self.clock.tick()
+            self.clock.tick(100)
 
 
 if __name__ == '__main__':
