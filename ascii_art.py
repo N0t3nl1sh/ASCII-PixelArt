@@ -14,14 +14,14 @@ def accelerate_conversion(image, width, height, ascii_coeff, step):
     return array_of_values
 
 class ArtConverter:
-    def __init__(self, path='img\pfp.jpg', font_size=11):
+    def __init__(self, path='video/test.mp4', font_size=11):
         pg.init()
-        self.mode = "a"
         if path.endswith(".mp4"):
             self.path = path
             self.capture = cv2.VideoCapture(path)
             ArtConverter.mode = "video"
             self.image = self.get_image()
+            self.mode = "video"
         elif path.endswith(".png") or path.endswith(".jpg") or path.endswith(".jpeg"):
             self.path = path
             self.cv2_image = cv2.imread(self.path)
@@ -65,23 +65,31 @@ class ArtConverter:
 
     
     def draw_converted_image(self):
-
-        if self.rendered == False:
+        if self.mode == "image":
+            if self.rendered == False:
+                self.image = self.get_image()
+                array_of_values = []
+                char_indices = self.image // self.ASCII_COEFF
+                for x in range(0, self.WIDTH,self.CHAR_STEP):
+                    for y in range(0, self.HEIGHT, self.CHAR_STEP):
+                        char_index = char_indices[x,y]
+                        print(char_index)
+                        array_of_values.append(char_index[0])
+                        self.surface.blit(self.RENDERED_ASCII_CHARS[char_index[0]], (x,y))
+                
+                self.rendered = True
+                self.asurf = self.surface.copy()
+            else:
+                self.surface.blit(self.asurf,(0,0))
+        elif self.mode == "video":
             self.image = self.get_image()
             array_of_values = []
             char_indices = self.image // self.ASCII_COEFF
             for x in range(0, self.WIDTH,self.CHAR_STEP):
                 for y in range(0, self.HEIGHT, self.CHAR_STEP):
                     char_index = char_indices[x,y]
-                    array_of_values.append(char_index[0])
-                    self.surface.blit(self.RENDERED_ASCII_CHARS[char_index[0]], (x,y))
-            
-            self.rendered = True
-            self.asurf = self.surface.copy()
-        else:
-            self.surface.blit(self.asurf,(0,0))
-
-
+                    array_of_values.append(char_index)
+                    self.surface.blit(self.RENDERED_ASCII_CHARS[char_index], (x,y))
 
 
         # the optimised method
