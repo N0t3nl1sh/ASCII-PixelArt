@@ -15,13 +15,6 @@ def accelerate_conversion(image, gray_image, width, height, color_coeff, ascii_c
                 array_of_values.append((char_index, (r, g, b), (x, y)))
     return array_of_values
 
-def Clamp(something,min,max):
-        if something < min:
-            something= min
-        if something > max:
-            something = max
-        return something
-
 class ArtConverter:
     def __init__(self,path='img\pfp.jpg', font_size=12, color_lvl=8):
         pg.init()
