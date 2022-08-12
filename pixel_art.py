@@ -19,19 +19,33 @@ def accelerate_conversion(image, width, height, color_coeff, step):
 class ArtConverter:
     def __init__(self, path='video/test.mp4', pixel_size=7, color_lvl=8):
         pg.init()
-        self.path = path
-        self.capture = cv2.VideoCapture(path)
+        if path.endswith(".mp4"):
+            self.path = path
+            self.capture = cv2.VideoCapture(path)
+            self.mode = "video"
+            self.image = self.get_image()
+        elif path.endswith(".png") or path.endswith(".jpg") or path.endswith(".jpeg"):
+            self.path = path
+            self.cv2_image = cv2.imread(self.path)
+            self.mode = "image"
+            self.image = self.get_image()
+        else:
+            self.mode = "idk"
+
+        self.rendered = False
+        self.asurf = 0
+
         self.PIXEL_SIZE = pixel_size
         self.COLOR_LVL = color_lvl
-        self.image = self.get_image()
         self.RES = self.WIDTH, self.HEIGHT = self.image.shape[0], self.image.shape[1]
         self.surface = pg.display.set_mode(self.RES)
         self.clock = pg.time.Clock()
         self.PALETTE, self.COLOR_COEFF = self.create_palette()
 
-        self.rec_fps = self.capture.get(cv2.CAP_PROP_FPS)
         self.record = False
-        self.recorder = cv2.VideoWriter('output/pixel_art.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.rec_fps, self.RES)
+        if self.mode == "video":
+            self.rec_fps = self.capture.get(cv2.CAP_PROP_FPS)
+            self.recorder = cv2.VideoWriter('output/pixel_art.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.rec_fps, self.RES)
 
     def get_frame(self):
         frame = pg.surfarray.array3d(self.surface)
@@ -48,11 +62,23 @@ class ArtConverter:
                 cv2.destroyAllWindows()
 
     def draw_converted_image(self):
-        self.image = self.get_image()
-        array_of_values = accelerate_conversion(self.image, self.WIDTH, self.HEIGHT, self.COLOR_COEFF, self.PIXEL_SIZE)
-        for color_key, (x, y) in array_of_values:
-            color = self.PALETTE[color_key]
-            pygame.gfxdraw.box(self.surface, (x, y, self.PIXEL_SIZE, self.PIXEL_SIZE), color)
+        if self.mode == "image":
+            if self.rendered == False:
+                self.image = self.get_image()
+                array_of_values = accelerate_conversion(self.image, self.WIDTH, self.HEIGHT, self.COLOR_COEFF, self.PIXEL_SIZE)
+                for color_key, (x, y) in array_of_values:
+                    color = self.PALETTE[color_key]
+                    pygame.gfxdraw.box(self.surface, (x, y, self.PIXEL_SIZE, self.PIXEL_SIZE), color)
+                self.asurf = self.surface.copy()
+                self.rendered = True
+            else: #already rendered
+                self.surface.blit(self.asurf,(0,0))
+        elif self.mode == "video":
+            self.image = self.get_image()
+            array_of_values = accelerate_conversion(self.image, self.WIDTH, self.HEIGHT, self.COLOR_COEFF, self.PIXEL_SIZE)
+            for color_key, (x, y) in array_of_values:
+                color = self.PALETTE[color_key]
+                pygame.gfxdraw.box(self.surface, (x, y, self.PIXEL_SIZE, self.PIXEL_SIZE), color)
 
     def create_palette(self):
         colors, color_coeff = np.linspace(0, 255, num=self.COLOR_LVL, dtype=int, retstep=True)
@@ -65,12 +91,18 @@ class ArtConverter:
         return palette, color_coeff
 
     def get_image(self):
-        ret, self.cv2_image = self.capture.read()
-        if not ret:
-            exit()
-        transposed_image = cv2.transpose(self.cv2_image)
-        image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2RGB)
-        return image
+        if self.mode == "video":
+            ret, self.cv2_image = self.capture.read()
+            if not ret:
+                exit()
+            transposed_image = cv2.transpose(self.cv2_image)
+            image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2RGB)
+            return image
+        elif self.mode == "image":
+            self.cv2_image = cv2.imread(self.path)
+            transposed_image = cv2.transpose(self.cv2_image)
+            image = cv2.cvtColor(transposed_image, cv2.COLOR_BGR2RGB)
+            return image
 
     def draw_cv2_image(self):
         resized_cv2_image = cv2.resize(self.cv2_image, (640, 360), interpolation=cv2.INTER_AREA)
@@ -85,7 +117,7 @@ class ArtConverter:
         pygame_image = pg.surfarray.array3d(self.surface)
         cv2_img = cv2.transpose(pygame_image)
         cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_RGB2BGR)
-        cv2.imwrite('output/pixel_art_image.jpg', cv2_img)
+        cv2.imwrite('output/pixel_art_image.png', cv2_img)
 
     def run(self):
         while True:
@@ -101,7 +133,7 @@ class ArtConverter:
             self.draw()
             pg.display.set_caption(str(self.clock.get_fps()))
             pg.display.flip()
-            self.clock.tick()
+            self.clock.tick(100)
 
 
 if __name__ == '__main__':
