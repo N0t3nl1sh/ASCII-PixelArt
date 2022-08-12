@@ -76,19 +76,26 @@ class ArtConverter:
 
     
 
-    def draw_converted_image(self):
-        if ArtConverter.rendered == False:
-            print("render tine")
+   def draw_converted_image(self):
+        if self.mode == "image":
+            if ArtConverter.rendered == False:
+                image, gray_image = self.get_image()
+                array_of_values = accelerate_conversion(image, gray_image, self.WIDTH, self.HEIGHT,
+                                                        self.COLOR_COEFF, self.ASCII_COEFF, self.CHAR_STEP)
+                for char_index, color, pos in array_of_values:
+                        char = self.ASCII_CHARS[char_index]
+                        self.surface.blit(self.PALETTE[char][color], pos)
+                self.asurf = self.surface.copy()
+                ArtConverter.rendered = True
+            else: #already rendered
+                self.surface.blit(self.asurf,(0,0))
+        else: #video
             image, gray_image = self.get_image()
             array_of_values = accelerate_conversion(image, gray_image, self.WIDTH, self.HEIGHT,
                                                     self.COLOR_COEFF, self.ASCII_COEFF, self.CHAR_STEP)
             for char_index, color, pos in array_of_values:
                     char = self.ASCII_CHARS[char_index]
                     self.surface.blit(self.PALETTE[char][color], pos)
-            self.asurf = self.surface.copy()
-            ArtConverter.rendered = True
-        else: #already rendered
-            self.surface.blit(self.asurf,(0,0))
 
     def create_palette(self):
         colors, color_coeff = np.linspace(0, 255, num=self.COLOR_LVL, dtype=int, retstep=True)
